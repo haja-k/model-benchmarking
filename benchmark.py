@@ -4,22 +4,22 @@ from openai import OpenAI
 
 # Configuration
 # Using credentials from call_vllm.py
-API_KEY = "sk-pSgNLfH0KRNy8EAhbgXrjA"
-BASE_URL = "https://ds-demo.sains.com.my/v1"
+API_KEY = "sk-__2SwruW7IZzzHm1pY9E7w"
+BASE_URL = "https://aivie-xchange.sains.com.my/v1"
 
 # List of models to benchmark. 
 # Please update this list with the actual model names you want to test.
 MODELS = [
-    "Qwen/Qwen3-VL-30B-A3B-Instruct",
-    # "model-2-name",
-    # "model-3-name"
+    # "Qwen/Qwen3-VL-30B-A3B-Instruct",
+    "deepseek-ai/DeepSeek-V3.2",
+    # "openai/gpt-oss-120b"
 ]
 
 # Benchmark settings
 INPUT_TOKEN_COUNT = 1000  # Constant 1K input tokens
 # The user mentioned 32K context window, but for the benchmark we use a fixed input.
 # We will generate enough output tokens to measure speed accurately.
-MAX_OUTPUT_TOKENS = 512   
+MAX_OUTPUT_TOKENS = 1024   
 
 def generate_prompt(approx_tokens):
     """
