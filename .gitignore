@@ -150,3 +150,6 @@ cython_debug/
 
 # VS Code
 .vscode/
+
+# Result
+result/
