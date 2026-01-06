@@ -10,9 +10,9 @@ BASE_URL = "https://aivie-xchange.sains.com.my/v1"
 # List of models to benchmark. 
 # Please update this list with the actual model names you want to test.
 MODELS = [
-    # "Qwen/Qwen3-VL-30B-A3B-Instruct",
-    "deepseek-ai/DeepSeek-V3.2",
-    # "openai/gpt-oss-120b"
+    "Qwen/Qwen3-VL-30B-A3B-Instruct",
+    "deepseek-ai/DeepSeek-V3.1",
+    "openai/gpt-oss-120b"
 ]
 
 # Benchmark settings
