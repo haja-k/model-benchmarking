@@ -161,3 +161,56 @@ The console also prints a formatted report at the end of each run.
 | **System Throughput** | Total tokens/sec across all concurrent workers |
 | **RPS** | Requests Per Second — sustained request rate |
 | **Error Rate** | Percentage of requests that failed |
+
+---
+
+## Timeout Diagnostic Tool (Phases 1–5)
+
+This repo includes a full industry-standard timeout diagnostic suite for LLM API deployments. It runs all five diagnostic phases (connectivity, TTFT, stall, E2E, concurrency) and generates a detailed HTML report for each model.
+
+### Runner script
+
+**To run all phases for all models:**
+
+```powershell
+# Windows PowerShell
+.\run_timeout_test.ps1
+```
+
+**To run for a single model:**
+
+```powershell
+.\run_timeout_test.ps1 -Model "Qwen/Qwen3-VL-30B-A3B-Instruct"
+```
+
+**To run only the smoke test (TC-03 baseline):**
+
+```powershell
+.\run_timeout_test.ps1 -Single
+```
+
+**To override SLO thresholds:**
+
+```powershell
+.\run_timeout_test.ps1 -SloTtft 2000 -SloTpot 100 -StallMs 3000
+```
+
+### Output
+
+Each run saves a full HTML diagnostic report to:
+
+```
+results/timeout_test/<timestamp>_<model>_timeout_diag.html
+```
+
+The report includes:
+- KPI summary (TTFT, TPOT, connect, stall, timeout counts)
+- Root-cause analysis and recommendations
+- SLO compliance bars
+- Per-test latency scatter
+- Max chunk gap (stall detector)
+- ITL histogram
+- Concurrency sweep charts
+- Full results table
+
+See [timeout_test.py](timeout_test.py) for full methodology and test details.
