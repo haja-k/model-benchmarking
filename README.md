@@ -195,6 +195,51 @@ This repo includes a full industry-standard timeout diagnostic suite for LLM API
 .\run_timeout_test.ps1 -SloTtft 2000 -SloTpot 100 -StallMs 3000
 ```
 
+**Run Phase 6 agentic workload tests only (recommended for intermittent timeout triage):**
+
+```powershell
+.\run_timeout_test.ps1 -Model "si-qwen3-vl-30b" -Agentic
+```
+
+**Run the full suite (Phases 1–5) plus Phase 6 agentic tests:**
+
+```powershell
+.\run_timeout_test.ps1 -Model "si-qwen3-vl-30b" -IncludeAgentic
+```
+
+### Runner flags
+
+| Flag | Description |
+|---|---|
+| `-Model` | Target a single model instead of all defaults |
+| `-Single` | Smoke test only (TC-03 TTFT baseline) |
+| `-Agentic` | Phase 6 only — agentic workload intermittency tests |
+| `-IncludeAgentic` | Full suite (Phases 1–5) + Phase 6 appended |
+| `-PromptTokens` | Input prompt length for standard tests (default: 1000) |
+| `-MaxTokens` | Max output tokens (default: 512) |
+| `-MinTokens` | Min output tokens (default: 256) |
+| `-SloTtft` | TTFT SLO threshold in ms (default: 3000) |
+| `-SloTpot` | TPOT SLO threshold in ms (default: 150) |
+| `-SloTtlt` | TTLT SLO threshold in ms (default: 60000) |
+| `-StallMs` | Chunk gap threshold to declare a stall in ms (default: 5000) |
+
+### Phase 6 — Agentic / Production Workload
+
+Specifically designed to reproduce the intermittent 504 / client-timeout pattern observed when agentic AI systems send complex structured scheduling prompts with embedded JSON busy-block calendars (~1,400–1,600 input tokens).
+
+| Test | Description | Budget |
+|---|---|---|
+| TC-A1 | Agentic workload baseline — finds true TTLT under low load | 180s |
+| TC-A2 | Same prompt with 30s client budget — simulates production agentic timeout | 30s |
+| TC-A3 | 5 sequential runs (2s gap) — measures intermittency / failure rate | 120s each |
+| TC-A4 | 3 concurrent requests — simulates retry storm (client retries firing simultaneously) | 120s each |
+
+**How to read the results:**
+- If TC-A3 reports `0/5 failed` → server is stable under current load, timeout is load-dependent
+- If TC-A3 reports `≥1/5 failed` → intermittency confirmed, QUEUE or TIMEOUT root cause
+- If TC-A2 returns `TIMEOUT` → the agentic AI's client budget needs increasing to ≥60s
+- If TC-A4 shows failures → retry storms are compounding queue saturation
+
 ### Output
 
 Each run saves a full HTML diagnostic report to:

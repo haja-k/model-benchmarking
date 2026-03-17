@@ -238,6 +238,78 @@ class TimeoutTester:
         repeats = (chars_needed // len(base)) + 1
         return (base * repeats)[:chars_needed]
 
+    def generate_agentic_prompt(self) -> str:
+        """Generate a realistic agentic scheduling-style prompt with embedded JSON.
+
+        Replicates the class of prompts observed causing intermittent 504/client timeouts
+        in production agentic AI systems:
+          - Structured multi-phase role instructions (~400 tokens)
+          - Embedded JSON calendar busy blocks (duplicated in two sections, ~600 tokens)
+          - Complex multi-step reasoning requirement (~500 token output expected)
+        Total: ~1,400–1,600 input tokens — matching the observed production workload.
+        """
+        busy_json = json.dumps({
+            "agenticuser1@example.com": [
+                {"start": "2026-04-14T14:00", "end": "2026-04-14T16:00"},
+                {"start": "2026-04-17T09:00", "end": "2026-04-17T10:00"},
+            ],
+            "agenticuser2@example.com": [
+                {"start": "2026-04-14T14:00", "end": "2026-04-14T16:00"},
+                {"start": "2026-04-16T08:00", "end": "2026-04-16T09:00"},
+                {"start": "2026-04-17T09:00", "end": "2026-04-17T10:00"},
+                {"start": "2026-04-17T14:00", "end": "2026-04-17T15:00"},
+            ],
+            "agenticuser3@example.com": [
+                {"start": "2026-04-16T08:00", "end": "2026-04-16T09:00"},
+                {"start": "2026-04-17T09:00", "end": "2026-04-17T10:00"},
+            ],
+        }, indent=2)
+
+        return (
+            "# ROLE: Expert Scheduling Auditor\n"
+            "# GOAL: Perform a 100% complete audit of free time blocks for a 60-minute meeting.\n\n"
+            "### [PHASE 1: THE FILTERS (STRICT)]\n"
+            "- START REFERENCE: 2026-04-13 09:00 (Monday).\n"
+            "- SEARCH RANGE: 7 business days (skip weekends).\n"
+            "- THE WEEKEND VOID: Saturday and Sunday are STRICTLY FORBIDDEN.\n"
+            "- USER PREFERENCE FILTER: \"afternoon\".\n"
+            "    - If \"Morning\" is mentioned, focus ONLY on 08:00-12:00.\n"
+            "    - If \"Afternoon\" is mentioned, focus ONLY on 13:00-17:00.\n"
+            "    - Otherwise, use the full 08:00-17:00 window.\n\n"
+            "### [PHASE 2: CONFLICT SUBTRACTION]\n"
+            f"- BUSY CLASH: Cross-reference {busy_json}.\n"
+            "- SUBTRACTION RULE: Treat busy blocks as \"holes\" in the day.\n"
+            "- MATH: [Requested Window] MINUS [Busy Blocks] = [Valid Windows].\n"
+            "- Do NOT list busy blocks. Only list remaining free time.\n\n"
+            "### [PHASE 3: FEASIBILITY GUARD & RATIONALE]\n"
+            "1. **DURATION VALIDATION (CRITICAL)**:\n"
+            "    - For every resulting free block, calculate its total minutes.\n"
+            "    - If the block duration is LESS than 60, it is **INVALID**.\n"
+            "    - If a day contains NO blocks long enough to fit the 60 minutes, skip that day.\n"
+            "2. **Rationale Step**: For each of the 7 business days, briefly explain:\n"
+            "    - If it is a Weekend (Skip).\n"
+            "    - If it matches or fails the User Preference filter (Include/Skip).\n"
+            "    - If the resulting free time is shorter than required 60 minutes (Mark as Impossible).\n"
+            "    - **SEARCH BOUNDARY**: Explicitly mention the 7-day window.\n"
+            "3. **User Summary**: A 1-2 sentence explanation of the result.\n"
+            "   - MUST mention the search window.\n"
+            "   - MUST explain why slots were found or not found.\n\n"
+            "### [OUTPUT FORMAT]\n"
+            "<Rationale>\n"
+            "[Per-day reasoning with explicit calculations]\n"
+            "</Rationale>\n\n"
+            "<User_Summary>\n"
+            "[1-2 sentence human-friendly explanation]\n"
+            "</User_Summary>\n\n"
+            "FINAL_DATA:\n"
+            "[List available 60-minute slots, or leave blank if none]\n\n"
+            "### [INPUT DATA]\n"
+            "- ANCHOR: 2026-04-13 09:00 (Monday)\n"
+            "- DURATION: 60 mins\n"
+            "- REQUEST: afternoon\n"
+            f"- BUSY_LOGS: {busy_json}\n"
+        )
+
     # ------------------------------------------------------------------
     # Core streaming request — measures every diagnostic dimension
     # ------------------------------------------------------------------
@@ -617,6 +689,95 @@ class TimeoutTester:
                 f"  Sweep c={level}: {ok}/{len(level_results)} ok | "
                 f"TTFT P95={_percentile(ttfts, 95):.0f}ms"
             )
+
+        return results
+
+    # ------------------------------------------------------------------
+    # Phase 6: Agentic / Production Workload
+    # Reproduces the intermittent 504 / client-timeout pattern seen when
+    # agentic AI systems send complex structured prompts with embedded JSON.
+    # ------------------------------------------------------------------
+
+    async def run_agentic_tests(self) -> List["DiagResult"]:
+        """Phase 6: Agentic / Production Workload Tests.
+
+        Test plan (mirrors production failure pattern):
+          TC-A1  Agentic baseline (180s budget) — establishes true TTLT for complex prompt
+          TC-A2  Agentic prompt with 30s budget  — simulates agentic AI client timeout
+          TC-A3  Intermittency measurement        — 5 sequential runs, detects failure rate
+          TC-A4  Retry storm simulation           — 3 concurrent requests (retry-on-timeout)
+        """
+        results: List[DiagResult] = []
+        cfg = self.config
+
+        prompt = self.generate_agentic_prompt()
+        prompt_est_tokens = len(prompt) // 4
+
+        print("\n" + "━" * 60)
+        print("PHASE 6 — Agentic / Production Workload")
+        print(f"  Prompt: ~{prompt_est_tokens} tokens (structured instructions + embedded JSON)")
+        print(f"  Reproducing: intermittent 504 / client-timeout pattern")
+        print("━" * 60)
+
+        # TC-A1: Baseline with generous budget — find out true TTLT
+        r = await self.run_test(
+            "TC-A1", "Agentic Workload Baseline",
+            f"Complex structured prompt ~{prompt_est_tokens} tok; 180s budget — establishes true TTLT",
+            prompt, 180.0, cfg.max_tokens, cfg.min_tokens,
+        )
+        results.append(r)
+
+        # TC-A2: Agentic prompt with production timeout (30s — typical agentic AI budget)
+        r = await self.run_test(
+            "TC-A2", "Agentic Workload — 30s Client Timeout",
+            "Same complex prompt; 30s budget — simulates production agentic AI timeout (TIMEOUT here = real user pain)",
+            prompt, 30.0, cfg.max_tokens, cfg.min_tokens,
+        )
+        results.append(r)
+
+        # TC-A3: Intermittency measurement — 5 sequential runs, 2s gap
+        print(f"\n[TC-A3] Intermittency measurement (5 sequential, 2s gap)")
+        fails = 0
+        for i in range(5):
+            r = await self.run_test(
+                "TC-A3", f"Agentic Intermittency #{i+1}/5",
+                f"Sequential run {i+1}/5 — detects first-attempt failure pattern",
+                prompt, 120.0, cfg.max_tokens, cfg.min_tokens,
+            )
+            results.append(r)
+            if not r.success:
+                fails += 1
+            if i < 4:
+                await asyncio.sleep(2)
+
+        fail_rate = 100.0 * fails / 5
+        logger.info(
+            f"  TC-A3 result: {fails}/5 failed ({fail_rate:.0f}% failure rate) — "
+            + ("INTERMITTENCY CONFIRMED" if fails > 0 else "stable under serial load")
+        )
+
+        # TC-A4: Retry storm — 3 concurrent (what happens when agentic retries kick in simultaneously)
+        print(f"\n[TC-A4] Retry storm simulation (3 concurrent agentic requests)")
+        tasks = [
+            self._execute(
+                "TC-A4", f"Retry Storm #{j+1}/3",
+                "3 concurrent identical agentic requests — simulates retry-on-timeout behaviour",
+                prompt, 120.0, cfg.max_tokens, cfg.min_tokens,
+            )
+            for j in range(3)
+        ]
+        storm_results = await asyncio.gather(*tasks)
+        for r in storm_results:
+            r.root_cause = classify_root_cause(r)
+            r.validate_slos(cfg)
+            self._print_result(r)
+        results.extend(storm_results)
+
+        storm_ok = sum(1 for r in storm_results if r.success)
+        logger.info(
+            f"  TC-A4 result: {storm_ok}/3 succeeded — "
+            + ("queue saturation likely" if storm_ok < 3 else "server handled retry burst")
+        )
 
         return results
 
@@ -1284,6 +1445,10 @@ async def main():
                         help="Chunk gap threshold to declare a generation stall (ms)")
     parser.add_argument("--single",        action="store_true",
                         help="Run a single quick smoke test only (TC-03 baseline)")
+    parser.add_argument("--agentic",       action="store_true",
+                        help="Run Phase 6 agentic workload tests only (intermittency + retry storm)")
+    parser.add_argument("--include-agentic", action="store_true",
+                        help="Append Phase 6 agentic tests to the full suite")
     args = parser.parse_args()
 
     config = DiagConfig(
@@ -1311,7 +1476,10 @@ async def main():
 
     tester = TimeoutTester(config)
 
-    if args.single:
+    if args.agentic:
+        print("\n=== AGENTIC WORKLOAD TESTS (Phase 6 only) ===")
+        results = await tester.run_agentic_tests()
+    elif args.single:
         print("\n=== SINGLE SMOKE TEST (TC-03) ===")
         prompt = tester.generate_prompt(config.prompt_tokens)
         results = [await tester.run_test(
@@ -1321,6 +1489,9 @@ async def main():
         )]
     else:
         results = await tester.run_all_tests()
+        if args.include_agentic:
+            agentic_results = await tester.run_agentic_tests()
+            results.extend(agentic_results)
 
     # ── Console summary ──────────────────────────────────────────────────
     print("\n" + "=" * W)

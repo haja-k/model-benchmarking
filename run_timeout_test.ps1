@@ -14,6 +14,8 @@
 param(
     [string] $Model        = "",
     [switch] $Single,
+    [switch] $Agentic,
+    [switch] $IncludeAgentic,
     [int]    $PromptTokens = 1000,
     [int]    $MaxTokens    = 512,
     [int]    $MinTokens    = 256,
@@ -43,7 +45,9 @@ $commonArgs = @(
     "--slo-ttlt",      $SloTtlt,
     "--stall-ms",      $StallMs
 )
-if ($Single) { $commonArgs += "--single" }
+if ($Single)         { $commonArgs += "--single" }
+if ($Agentic)        { $commonArgs += "--agentic" }
+if ($IncludeAgentic) { $commonArgs += "--include-agentic" }
 
 $results    = @()
 $totalStart = Get-Date
@@ -57,6 +61,10 @@ Write-Host $sepEq
 Write-Host "  Models : $($targets -join ', ')"
 if ($Single) {
     Write-Host "  Phases : Smoke test (TC-03 only)"
+} elseif ($Agentic) {
+    Write-Host "  Phases : Phase 6 - Agentic workload only (TC-A1..TC-A4)"
+} elseif ($IncludeAgentic) {
+    Write-Host "  Phases : 1-5 (full suite) + Phase 6 (agentic)"
 } else {
     Write-Host "  Phases : 1-5 (full suite)"
 }
