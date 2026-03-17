@@ -1,93 +1,163 @@
-# benchmarking
+﻿# LLM Production Benchmark
 
+Industry-standard benchmark tool for evaluating LLM API deployments. Measures TTFT, TPOT, TTLT, ITL, throughput, RPS, error rate, and concurrency scaling — with a self-contained HTML report generated after every run.
 
+---
 
-## Getting started
+## Requirements
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+- Python 3.9+
+- Dependencies listed in `requirements.txt`
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.sains.com.my/dss/data-science/ai-cloud-engineer/performance-benchmarking/benchmarking.git
-git branch -M main
-git push -uf origin main
+```bash
+pip install -r requirements.txt
 ```
 
-## Integrate with your tools
+---
 
-- [ ] [Set up project integrations](https://gitlab.sains.com.my/dss/data-science/ai-cloud-engineer/performance-benchmarking/benchmarking/-/settings/integrations)
+## Configuration
 
-## Collaborate with your team
+Create a `.env` file in this directory:
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+```env
+API_KEY=your-api-key
+API_BASE_URL=https://your-endpoint/v1
+MODEL=si-qwen3-vl-30b
+```
 
-## Test and Deploy
+The script validates the model name at startup. Only the following models are accepted:
 
-Use the built-in continuous integration in GitLab.
+| Model ID | Description |
+|---|---|
+| `si-gpt-oss-120b` | GPT OSS 120B |
+| `si-qwen3-embedding-8b` | Qwen3 Embedding 8B |
+| `si-deepseek-3.2` | DeepSeek 3.2 |
+| `si-qwen3.5-27b` | Qwen 3.5 27B |
+| `si-qwen3-vl-30b` | Qwen3 VL 30B |
+| `si-qwen3.5-35b` | Qwen 3.5 35B |
+| `sains-llm-agentic` | Sains LLM Agentic |
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+---
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### Quick start (recommended defaults)
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+```bash
+python production_benchmark.py
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+Runs 20 requests in `balanced` mode using the model set in `.env`.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+---
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### Benchmark modes
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+| Mode | Input tokens | Output tokens | Concurrency | Best for |
+|---|---|---|---|---|
+| `balanced` | 1000 | 512 | as set | General-purpose, real-world simulation |
+| `ttft` | 3000 | 1 | 1 (fixed) | Measuring first-token latency |
+| `throughput` | 500 | 1024 | as set | Sustained generation speed |
+| `custom` | your choice | your choice | your choice | Full manual control |
 
-## License
-For open source projects, say how it is licensed.
+---
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+### Common examples
+
+**Balanced run, 30 requests, 4 concurrent workers:**
+```bash
+python production_benchmark.py --mode balanced --runs 30 --concurrency 4
+```
+
+**TTFT-focused measurement:**
+```bash
+python production_benchmark.py --mode ttft --runs 20
+```
+
+**Throughput test with high concurrency:**
+```bash
+python production_benchmark.py --mode throughput --concurrency 8 --runs 40
+```
+
+**Duration-based run (run for 60 seconds):**
+```bash
+python production_benchmark.py --mode balanced --duration 60 --concurrency 4
+```
+
+**Concurrency scaling sweep (tests c=1,2,4,8,16 automatically):**
+```bash
+python production_benchmark.py --mode throughput --sweep
+```
+
+**Custom sweep levels:**
+```bash
+python production_benchmark.py --mode throughput --sweep --sweep-levels 1,4,8,16,32 --sweep-runs 20
+```
+
+**Override a specific model:**
+```bash
+python production_benchmark.py --model si-deepseek-3.2 --mode balanced
+```
+
+**Save raw results to JSON as well:**
+```bash
+python production_benchmark.py --mode balanced --output results.json
+```
+
+---
+
+### All options
+
+```
+--base-url        API base URL (overrides .env)
+--api-key         API key (overrides .env)
+--model           Model ID (must be one of the allowed models above)
+--mode            balanced | ttft | throughput | custom  (default: balanced)
+--concurrency     Number of parallel workers (default: 1)
+--runs            Total requests to send (default: 20)
+--duration        Run for N seconds instead of a fixed request count
+--warmup          Warmup requests excluded from stats (default: 2)
+--max-tokens      Override max output tokens
+--min-tokens      Force minimum output tokens
+--prompt-tokens   Override input prompt length in tokens
+--output          Also save raw per-request data to a JSON file
+--sweep           Run a concurrency scaling sweep
+--sweep-levels    Comma-separated concurrency levels (default: 1,2,4,8,16)
+--sweep-runs      Requests per sweep level (default: 20)
+```
+
+---
+
+## Output
+
+After each run the script saves an HTML report to the working directory:
+
+```
+YYYYMMDD_HHMMSS_<model>_benchmark.html
+```
+
+The report includes:
+- KPI summary cards (TTFT P50/P95/P99, TPOT, TTLT, system throughput, RPS, error rate)
+- Testing parameters table
+- Latency percentile bar charts (TTFT, TPOT, TTLT)
+- Per-request latency time-series
+- Per-request throughput histogram
+- Concurrency scaling charts (when `--sweep` is used)
+- Full statistics table (mean, std, P50, P90, P95, P99, max)
+
+The console also prints a formatted report at the end of each run.
+
+---
+
+## Metrics reference
+
+| Metric | Definition |
+|---|---|
+| **TTFT** | Time to First Token — wall-clock time from request sent to first token received |
+| **TPOT** | Time Per Output Token — average inter-token latency during generation |
+| **TTLT** | Time to Last Token — total end-to-end request latency |
+| **ITL** | Inter-Token Latency — per-token generation delay distribution |
+| **TPS** | Tokens Per Second — generation speed per request |
+| **System Throughput** | Total tokens/sec across all concurrent workers |
+| **RPS** | Requests Per Second — sustained request rate |
+| **Error Rate** | Percentage of requests that failed |
